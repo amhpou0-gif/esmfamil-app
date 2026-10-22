@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>برگه بازی اسم‌فامیل</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body { font-family: Tahoma, sans-serif; background: #f4f7f6; padding: 15px; margin: 0; }
+    .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    h2 { text-align: center; color: #2c3e50; margin-top: 0; }
+    .letter-badge { background: #3498db; color: white; padding: 4px 12px; border-radius: 20px; }
+    .field { margin-bottom: 12px; }
+    label { display: block; margin-bottom: 4px; font-weight: bold; color: #555; }
+    input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
+    button { width: 100%; background: #27ae60; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>حرف این دور: <span id="roundLetter" class="letter-badge">...</span></h2>
+    <div id="fieldsContainer"></div>
+    <button onclick="submitData()">✅ ثبت نهایی پاسخ‌ها</button>
+  </div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const letter = urlParams.get('letter') || 'الف';
+    document.getElementById('roundLetter').innerText = letter;
+
+    const categories = ["اسم", "فامیل", "شهر", "کشور", "غذا", "اشیا", "حیوان", "گیاه", "ماشین", "رنگ"];
+    const container = document.getElementById('fieldsContainer');
+
+    categories.forEach(cat => {
+      const div = document.createElement('div');
+      div.className = 'field';
+      div.innerHTML = `<label>${cat}</label><input type="text" id="cat_${cat}" placeholder="با «${letter}» شروع شود...">`;
+      container.appendChild(div);
+    });
+
+    function submitData() {
+      const answers = {};
+      categories.forEach(cat => {
+        answers[cat] = document.getElementById(`cat_${cat}`).value.trim();
+      });
+      tg.sendData(JSON.stringify(answers));
+      tg.close();
+    }
+  </script>
+</body>
+</html>
