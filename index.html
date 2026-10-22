@@ -6,29 +6,44 @@
   <title>برگه بازی اسم‌فامیل</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
-    body { font-family: Tahoma, sans-serif; background: #f4f7f6; padding: 15px; margin: 0; }
-    .card { background: white; border-radius: 12px; padding: 15px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    h2 { text-align: center; color: #2c3e50; margin-top: 0; }
-    .letter-badge { background: #3498db; color: white; padding: 4px 12px; border-radius: 20px; }
+    body { font-family: Tahoma, Arial, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; }
+    .card { background: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
+    h2 { text-align: center; color: #1e293b; margin-top: 0; font-size: 20px; }
+    .badge { background: #0284c7; color: white; padding: 4px 14px; border-radius: 15px; font-weight: bold; }
     .field { margin-bottom: 12px; }
-    label { display: block; margin-bottom: 4px; font-weight: bold; color: #555; }
-    input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 14px; }
-    button { width: 100%; background: #27ae60; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    label { display: block; margin-bottom: 4px; font-weight: bold; color: #475569; font-size: 13px; }
+    input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 15px; outline: none; }
+    input:focus { border-color: #0284c7; }
+    button { width: 100%; background: #16a34a; color: white; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 15px; }
+    button:active { background: #15803d; }
   </style>
 </head>
 <body>
   <div class="card">
-    <h2>حرف این دور: <span id="roundLetter" class="letter-badge">...</span></h2>
+    <h2>حرف این راند: <span id="roundLetter" class="badge">...</span></h2>
     <div id="fieldsContainer"></div>
-    <button onclick="submitData()">✅ ثبت نهایی پاسخ‌ها</button>
+    <button id="submitBtn" onclick="submitAnswers()">✅ ثبت نهایی پاسخ‌ها</button>
   </div>
 
   <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand();
+    // تنظیم امن تلگرام بدون کرش در موبایل
+    let tg = null;
+    try {
+      if (window.Telegram && window.Telegram.WebApp) {
+        tg = window.Telegram.WebApp;
+        tg.expand();
+      }
+    } catch (e) {
+      console.log("Telegram WebApp not ready:", e);
+    }
 
+    // خواندن پارامترهای URL با پشتیبانی از حروف فارسی
     const urlParams = new URLSearchParams(window.location.search);
-    const letter = urlParams.get('letter') || 'الف';
+    const rawLetter = urlParams.get('letter') || 'الف';
+    const letter = decodeURIComponent(rawLetter);
+    const roomId = urlParams.get('room_id') || 'default';
+    const botUser = urlParams.get('bot') || '';
+
     document.getElementById('roundLetter').innerText = letter;
 
     const categories = ["اسم", "فامیل", "شهر", "کشور", "غذا", "اشیا", "حیوان", "گیاه", "ماشین", "رنگ"];
@@ -37,17 +52,44 @@
     categories.forEach(cat => {
       const div = document.createElement('div');
       div.className = 'field';
-      div.innerHTML = `<label>${cat}</label><input type="text" id="cat_${cat}" placeholder="با «${letter}» شروع شود...">`;
+      div.innerHTML = `
+        <label>${cat}</label>
+        <input type="text" id="cat_${cat}" placeholder="با «${letter}» شروع شود...">
+      `;
       container.appendChild(div);
     });
 
-    function submitData() {
+    function submitAnswers() {
       const answers = {};
       categories.forEach(cat => {
         answers[cat] = document.getElementById(`cat_${cat}`).value.trim();
       });
-      tg.sendData(JSON.stringify(answers));
-      tg.close();
+
+      const payload = {
+        room_id: roomId,
+        answers: answers
+      };
+
+      const jsonStr = JSON.stringify(payload);
+
+      // روش ۱: ارسال مستقیم از وب‌اپ
+      let sentViaTg = false;
+      try {
+        if (tg && typeof tg.sendData === 'function') {
+          tg.sendData(jsonStr);
+          sentViaTg = true;
+          tg.close();
+        }
+      } catch (err) {
+        console.log("sendData failed, fallback to link", err);
+      }
+
+      // روش ۲: ریدایرکت به ربات تلگرام در صورت باز بودن در مرورگر یا گروه
+      if (!sentViaTg) {
+        const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(jsonStr))));
+        document.getElementById('submitBtn').innerText = "در حال انتقال به تلگرام...";
+        window.location.href = `https://t.me/${botUser}?start=ans_${encoded}`;
+      }
     }
   </script>
 </body>
