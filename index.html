@@ -73,47 +73,44 @@
       const btn = document.getElementById('submitBtn');
       const statusBox = document.getElementById('statusBox');
       btn.disabled = true;
-      btn.innerText = "⏳ در حال ارسال به سرور مسابقه...";
+      btn.innerText = "⏳ در حال ذخیره...";
 
       const answers = {};
       categories.forEach(cat => {
         answers[cat] = document.getElementById(`cat_${cat}`).value.trim();
       });
 
-      // آدرس IP یا لوکال هاست سرور API بات
       const payload = {
         room_id: roomId,
         user_id: userId || 0,
         answers: answers
       };
 
+      // ۱. ارسال به سرور لوکال یا وب‌سرویس
       try {
-        // تلاش برای ارسال مستقیم به اندپوینت ربات
-        await fetch('http://localhost:8000/api/submit', {
+        await fetch('http://127.0.0.1:8000/api/submit', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
-      } catch (e) {
-        console.log("Local fetch skipped, webapp data forwarded");
-      }
+      } catch (err) {}
 
-      // ارسال مستقیم تلگرامی در صورتی که وب‌اپ باز باشد
+      // ۲. متد مستقیم تلگرام
       try {
         if (tg && typeof tg.sendData === 'function') {
           tg.sendData(JSON.stringify(payload));
         }
       } catch (err) {}
 
-      btn.innerText = "✅ پاسخ‌های شما با موفقیت ثبت شد!";
-      statusBox.innerText = "پاسخ‌ها ذخیره شدند. به گروه تلگرام بازگردید و منتظر اتمام استوپ باشید.";
+      btn.innerText = "✅ پاسخ‌ها ذخیره شد!";
+      statusBox.innerText = "برگه شما با موفقیت ثبت شد. به گروه بازگردید.";
       statusBox.style.display = "block";
 
       setTimeout(() => {
         if (tg && typeof tg.close === 'function') {
           tg.close();
         }
-      }, 1200);
+      }, 1000);
     }
   </script>
 </body>
