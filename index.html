@@ -14,10 +14,9 @@
     label { display: block; margin-bottom: 4px; font-weight: bold; color: #475569; font-size: 13px; }
     input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 15px; outline: none; }
     input:focus { border-color: #0284c7; }
-    button { width: 100%; background: #16a34a; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 15px; transition: background 0.2s; }
+    button { width: 100%; background: #16a34a; color: white; border: none; padding: 14px; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 15px; }
     button:disabled { background: #94a3b8; cursor: not-allowed; }
-    .msg-box { display: none; text-align: center; padding: 12px; margin-top: 15px; border-radius: 8px; font-weight: bold; }
-    .msg-success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .btn-link { display: block; text-align: center; background: #0284c7; color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: bold; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -25,7 +24,7 @@
     <h2>حرف این راند: <span id="roundLetter" class="badge">...</span></h2>
     <div id="fieldsContainer"></div>
     <button id="submitBtn" onclick="submitAnswers()">✅ ثبت نهایی پاسخ‌ها</button>
-    <div id="statusBox" class="msg-box msg-success"></div>
+    <div id="fallbackAction" style="display:none;"></div>
   </div>
 
   <script>
@@ -37,7 +36,7 @@
         tg.expand();
       }
     } catch (e) {
-      console.log("Telegram WebApp initialization info:", e);
+      console.log(e);
     }
 
     const urlParams = new URLSearchParams(window.location.search);
@@ -63,9 +62,8 @@
 
     function submitAnswers() {
       const btn = document.getElementById('submitBtn');
-      const statusBox = document.getElementById('statusBox');
       btn.disabled = true;
-      btn.innerText = "⏳ در حال ثبت پاسخ‌ها...";
+      btn.innerText = "⏳ در حال آماده‌سازی پاسخ‌ها...";
 
       const answers = {};
       categories.forEach(cat => {
@@ -78,28 +76,21 @@
       };
 
       const jsonStr = JSON.stringify(payload);
-
-      // ۱. اگر وب‌اپ داخل تلگرام در وضعیت استاندارد باز شده باشد:
-      let sentViaTg = false;
-      try {
-        if (tg && typeof tg.sendData === 'function') {
-          tg.sendData(jsonStr);
-          sentViaTg = true;
-          statusBox.innerText = "✅ پاسخ‌ها با موفقیت ثبت شد. به تلگرام برگردید.";
-          statusBox.style.display = "block";
-          setTimeout(() => { tg.close(); }, 1000);
-          return;
-        }
-      } catch (err) {
-        console.log("tg.sendData unavailable, falling back...", err);
-      }
-
-      // ۲. در پیام‌های اینلاین، ریدایرکت از طریق لینک دیپ‌لینک به ربات تلگرام:
       const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(jsonStr))));
       const targetUrl = `https://t.me/${botUser}?start=ans_${encoded}`;
 
-      statusBox.innerHTML = `✅ پاسخ‌ها آماده شد!<br><a href="${targetUrl}" style="color:#0284c7; text-decoration:underline; font-size:16px;">اینجا کلیک کنید تا پاسخ‌ها به ربات تحویل داده شود</a>`;
-      statusBox.style.display = "block";
+      // تلاش اول با متد اختصاصی وب‌اپ
+      try {
+        if (tg && typeof tg.sendData === 'function') {
+          tg.sendData(jsonStr);
+        }
+      } catch (err) {}
+
+      // هدایت به ربات تلگرام برای ثبت قطعی پاسخ‌ها در دیتابیس
+      btn.innerText = "✅ ثبت شد! در حال انتقال به تلگرام...";
+      const fallbackDiv = document.getElementById('fallbackAction');
+      fallbackDiv.innerHTML = `<a class="btn-link" href="${targetUrl}">👈 برای تأیید نهایی و برگشت به تلگرام اینجا کلیک کنید</a>`;
+      fallbackDiv.style.display = "block";
 
       if (tg && typeof tg.openTelegramLink === 'function') {
         tg.openTelegramLink(targetUrl);
