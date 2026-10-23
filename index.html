@@ -18,6 +18,7 @@
     button:disabled { background: #94a3b8; cursor: not-allowed; }
     .status-msg { display: none; padding: 12px; border-radius: 8px; font-weight: bold; text-align: center; margin-top: 15px; }
     .status-success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+    .redirect-btn { display: none; text-align: center; background: #0284c7; color: white; text-decoration: none; padding: 12px; border-radius: 8px; font-weight: bold; margin-top: 10px; }
   </style>
 </head>
 <body>
@@ -26,20 +27,16 @@
     <div id="fieldsContainer"></div>
     <button id="submitBtn" onclick="submitAnswers()">✅ ثبت نهایی پاسخ‌ها</button>
     <div id="statusBox" class="status-msg status-success"></div>
+    <a id="redirectLink" class="redirect-btn" href="#">👈 تایید و بازگشت به تلگرام</a>
   </div>
 
   <script>
     let tg = null;
-    let userId = null;
-
     try {
       if (window.Telegram && window.Telegram.WebApp) {
         tg = window.Telegram.WebApp;
         tg.ready();
         tg.expand();
-        if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
-          userId = tg.initDataUnsafe.user.id;
-        }
       }
     } catch (e) {
       console.log(e);
@@ -49,10 +46,7 @@
     const rawLetter = urlParams.get('letter') || 'الف';
     const letter = decodeURIComponent(rawLetter);
     const roomId = urlParams.get('room_id') || 'default';
-    const paramUid = urlParams.get('uid');
-    if (!userId && paramUid && paramUid !== '0') {
-      userId = parseInt(paramUid);
-    }
+    const botUser = urlParams.get('bot') || '';
 
     document.getElementById('roundLetter').innerText = letter;
 
@@ -69,48 +63,48 @@
       container.appendChild(div);
     });
 
-    async function submitAnswers() {
+    function base64UrlEncode(str) {
+      return btoa(unescape(encodeURIComponent(str)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    }
+
+    function submitAnswers() {
       const btn = document.getElementById('submitBtn');
       const statusBox = document.getElementById('statusBox');
+      const redirectLink = document.getElementById('redirectLink');
+
       btn.disabled = true;
-      btn.innerText = "⏳ در حال ذخیره...";
+      btn.innerText = "⏳ در حال ثبت پاسخ‌ها...";
 
       const answers = {};
       categories.forEach(cat => {
-        answers[cat] = document.getElementById(`cat_${cat}`).value.trim();
+        const val = document.getElementById(`cat_${cat}`).value.trim();
+        if (val) {
+          answers[cat] = val;
+        }
       });
 
       const payload = {
         room_id: roomId,
-        user_id: userId || 0,
         answers: answers
       };
 
-      // ۱. ارسال به سرور لوکال یا وب‌سرویس
-      try {
-        await fetch('http://127.0.0.1:8000/api/submit', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
-      } catch (err) {}
+      const encoded = base64UrlEncode(JSON.stringify(payload));
+      const targetUrl = `https://t.me/${botUser}?start=ans_${encoded}`;
 
-      // ۲. متد مستقیم تلگرام
-      try {
-        if (tg && typeof tg.sendData === 'function') {
-          tg.sendData(JSON.stringify(payload));
-        }
-      } catch (err) {}
-
-      btn.innerText = "✅ پاسخ‌ها ذخیره شد!";
-      statusBox.innerText = "برگه شما با موفقیت ثبت شد. به گروه بازگردید.";
+      statusBox.innerText = "✅ برگه آماده شد. در حال انتقال به تلگرام...";
       statusBox.style.display = "block";
 
-      setTimeout(() => {
-        if (tg && typeof tg.close === 'function') {
-          tg.close();
-        }
-      }, 1000);
+      redirectLink.href = targetUrl;
+      redirectLink.style.display = "block";
+
+      if (tg && typeof tg.openTelegramLink === 'function') {
+        tg.openTelegramLink(targetUrl);
+      } else {
+        window.location.href = targetUrl;
+      }
     }
   </script>
 </body>
