@@ -53,12 +53,13 @@
     const categories = ["اسم", "فامیل", "شهر", "کشور", "غذا", "اشیا", "حیوان", "گیاه", "ماشین", "رنگ"];
     const container = document.getElementById('fieldsContainer');
 
-    categories.forEach(cat => {
+    // ساخت فیلدها با استفاده از data-cat برای جلوگیری از خطای انکودینگ
+    categories.forEach((cat, index) => {
       const div = document.createElement('div');
       div.className = 'field';
       div.innerHTML = `
         <label>${cat}</label>
-        <input type="text" id="cat_${cat}" placeholder="با «${letter}» شروع شود...">
+        <input type="text" class="game-input" data-cat="${cat}" placeholder="با «${letter}» شروع شود...">
       `;
       container.appendChild(div);
     });
@@ -79,11 +80,10 @@
       btn.innerText = "⏳ در حال ثبت پاسخ‌ها...";
 
       const answers = {};
-      categories.forEach(cat => {
-        const val = document.getElementById(`cat_${cat}`).value.trim();
-        if (val) {
-          answers[cat] = val;
-        }
+      const inputs = document.querySelectorAll('.game-input');
+      inputs.forEach(input => {
+        const cat = input.getAttribute('data-cat');
+        answers[cat] = input.value.trim();
       });
 
       const payload = {
@@ -94,7 +94,7 @@
       const encoded = base64UrlEncode(JSON.stringify(payload));
       const targetUrl = `https://t.me/${botUser}?start=ans_${encoded}`;
 
-      statusBox.innerText = "✅ برگه آماده شد. در حال انتقال به تلگرام...";
+      statusBox.innerText = "✅ پاسخ‌ها آماده شد. در حال انتقال به تلگرام...";
       statusBox.style.display = "block";
 
       redirectLink.href = targetUrl;
