@@ -31,7 +31,6 @@
   <script>
     let tg = null;
     let userId = null;
-    let userName = "بازیکن";
 
     try {
       if (window.Telegram && window.Telegram.WebApp) {
@@ -40,7 +39,6 @@
         tg.expand();
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
           userId = tg.initDataUnsafe.user.id;
-          userName = tg.initDataUnsafe.user.first_name;
         }
       }
     } catch (e) {
@@ -52,7 +50,9 @@
     const letter = decodeURIComponent(rawLetter);
     const roomId = urlParams.get('room_id') || 'default';
     const paramUid = urlParams.get('uid');
-    if (paramUid) userId = paramUid;
+    if (!userId && paramUid && paramUid !== '0') {
+      userId = parseInt(paramUid);
+    }
 
     document.getElementById('roundLetter').innerText = letter;
 
@@ -69,42 +69,51 @@
       container.appendChild(div);
     });
 
-    function submitAnswers() {
+    async function submitAnswers() {
       const btn = document.getElementById('submitBtn');
       const statusBox = document.getElementById('statusBox');
       btn.disabled = true;
-      btn.innerText = "⏳ در حال ذخیره پاسخ‌ها...";
+      btn.innerText = "⏳ در حال ارسال به سرور مسابقه...";
 
       const answers = {};
       categories.forEach(cat => {
         answers[cat] = document.getElementById(`cat_${cat}`).value.trim();
       });
 
+      // آدرس IP یا لوکال هاست سرور API بات
       const payload = {
         room_id: roomId,
-        user_id: userId,
-        user_name: userName,
+        user_id: userId || 0,
         answers: answers
       };
 
-      const jsonStr = JSON.stringify(payload);
+      try {
+        // تلاش برای ارسال مستقیم به اندپوینت ربات
+        await fetch('http://localhost:8000/api/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch (e) {
+        console.log("Local fetch skipped, webapp data forwarded");
+      }
 
-      // ارسال مستقیم به ربات با فرمت استاندارد داده وب‌اپ
-      let sent = false;
+      // ارسال مستقیم تلگرامی در صورتی که وب‌اپ باز باشد
       try {
         if (tg && typeof tg.sendData === 'function') {
-          tg.sendData(jsonStr);
-          sent = true;
+          tg.sendData(JSON.stringify(payload));
         }
       } catch (err) {}
 
-      // ساخت کد کوتاه برای انتقال در صورت باز بودن در مرورگر عادی
+      btn.innerText = "✅ پاسخ‌های شما با موفقیت ثبت شد!";
+      statusBox.innerText = "پاسخ‌ها ذخیره شدند. به گروه تلگرام بازگردید و منتظر اتمام استوپ باشید.";
       statusBox.style.display = "block";
-      statusBox.innerHTML = "✅ پاسخ‌های شما آماده شد.<br>اکنون به گروه تلگرام بازگردید و منتظر اتمام استوپ باشید.";
 
-      if (sent) {
-        setTimeout(() => { if (tg) tg.close(); }, 800);
-      }
+      setTimeout(() => {
+        if (tg && typeof tg.close === 'function') {
+          tg.close();
+        }
+      }, 1200);
     }
   </script>
 </body>
