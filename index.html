@@ -7,25 +7,9 @@
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <style>
     body { font-family: Tahoma, Arial, sans-serif; background: #f0f2f5; padding: 15px; margin: 0; }
-    .card { background: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; position: relative; }
+    .card { background: #ffffff; border-radius: 12px; padding: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); max-width: 500px; margin: 0 auto; }
     h2 { text-align: center; color: #1e293b; margin-top: 0; font-size: 20px; }
     .badge { background: #0284c7; color: white; padding: 4px 14px; border-radius: 15px; font-weight: bold; }
-    
-    /* هشدار استوپ زنده */
-    .stop-banner {
-      display: none;
-      background: #ef4444;
-      color: white;
-      padding: 12px;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      text-align: center;
-      font-weight: bold;
-      animation: pulse 1s infinite alternate;
-    }
-    .countdown-text { font-size: 22px; font-weight: 900; margin-top: 4px; }
-    @keyframes pulse { from { opacity: 0.9; } to { opacity: 1; transform: scale(1.01); } }
-
     .field { margin-bottom: 12px; }
     label { display: block; margin-bottom: 4px; font-weight: bold; color: #475569; font-size: 13px; }
     input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; box-sizing: border-box; font-size: 15px; outline: none; }
@@ -37,14 +21,9 @@
 </head>
 <body>
   <div class="card">
-    <div id="stopBanner" class="stop-banner">
-      <div id="stopMessage">🛑 استوپ زده شد!</div>
-      <div class="countdown-text">فرصت باقی‌مانده: <span id="countdownTimer">15</span> ثانیه</div>
-    </div>
-
     <h2>حرف این راند: <span id="roundLetter" class="badge">...</span></h2>
     <div id="fieldsContainer"></div>
-    <button id="submitBtn" onclick="submitAnswers()">✅ تایید و آماده‌سازی ارسال</button>
+    <button id="submitBtn" onclick="submitAnswers()">✅ ثبت و ارسال پاسخ‌ها</button>
     <div id="statusBox" class="status"></div>
     <a id="sendLink" class="btn-send" href="#">🚀 ارسال به ربات در تلگرام</a>
   </div>
@@ -80,16 +59,11 @@
       container.appendChild(div);
     });
 
-    let isSubmitted = false;
-    let stopDetected = false;
-    let timeLeft = 15;
-    let countdownInterval = null;
+    let submitted = false;
 
-    // تابع ارسال پاسخ‌ها
     function submitAnswers() {
-      if (isSubmitted) return;
-      isSubmitted = true;
-      if (countdownInterval) clearInterval(countdownInterval);
+      if (submitted) return;
+      submitted = true;
 
       const inputs = document.querySelectorAll('.game-input');
       const answersList = [];
@@ -104,9 +78,9 @@
       const targetUrl = `https://t.me/${cleanBot}?text=` + encodeURIComponent(msgText);
 
       document.getElementById('submitBtn').style.display = 'none';
-      
+
       const statusBox = document.getElementById('statusBox');
-      statusBox.innerHTML = "برگه آماده شد! روی دکمه آبی زیر بزنید و در تلگرام دکمه Send را فشار دهید:";
+      statusBox.innerHTML = "برگه آماده شد! روی دکمه آبی زیر بزنید و دکمه Send را فشار دهید:";
       statusBox.style.display = 'block';
 
       const sendLink = document.getElementById('sendLink');
@@ -119,51 +93,6 @@
         window.location.href = targetUrl;
       }
     }
-
-    // پایش مداوم وضعیت استوپ هر ۲ ثانیه یک‌بار
-    async function checkRoomStop() {
-      if (isSubmitted || stopDetected) return;
-      try {
-        const res = await fetch(`http://127.0.0.1:8000/api/room_status?room_id=${roomId}`);
-        const data = await res.json();
-        if (data.status === 'stopped' && !stopDetected) {
-          triggerStopUI(data.stopped_by);
-        }
-      } catch (e) {}
-    }
-
-    function triggerStopUI(stoppedBy) {
-      stopDetected = true;
-      const banner = document.getElementById('stopBanner');
-      const msg = document.getElementById('stopMessage');
-      const timerSpan = document.getElementById('countdownTimer');
-
-      msg.innerText = `🛑 «${stoppedBy || 'یکی از بازیکنان'}» استوپ زد!`;
-      banner.style.display = 'block';
-
-      if (tg && tg.HapticFeedback) {
-        tg.HapticFeedback.notificationOccurred('warning');
-      }
-
-      countdownInterval = setInterval(() => {
-        timeLeft--;
-        timerSpan.innerText = timeLeft;
-        if (timeLeft <= 0) {
-          clearInterval(countdownInterval);
-          // ارسال خودکار کلمات پرشده در ثانیه صفر
-          submitAnswers();
-        }
-      }, 1000);
-    }
-
-    // شروع پایش
-    const pollInterval = setInterval(() => {
-      if (isSubmitted) {
-        clearInterval(pollInterval);
-      } else {
-        checkRoomStop();
-      }
-    }, 2000);
   </script>
 </body>
 </html>
